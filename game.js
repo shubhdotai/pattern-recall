@@ -48,9 +48,13 @@ function init() {
     window.addEventListener('resize', debounce(handleResize, 250));
 }
 
+function isMobileView() {
+    // Use matchMedia for consistency with CSS media queries
+    return window.matchMedia('(max-width: 600px)').matches;
+}
+
 function setGridDimensions() {
-    const isMobile = window.innerWidth <= 600;
-    if (isMobile) {
+    if (isMobileView()) {
         GRID_WIDTH = 8;
         GRID_HEIGHT = 12;
     } else {
@@ -58,16 +62,16 @@ function setGridDimensions() {
         GRID_HEIGHT = 8;
     }
     
-    // Update CSS grid columns
+    // Update CSS grid columns explicitly
     grid.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 1fr)`;
 }
 
 function handleResize() {
-    const wasMobile = GRID_WIDTH === 8;
-    const isMobile = window.innerWidth <= 600;
+    const currentlyMobile = GRID_WIDTH === 8;
+    const shouldBeMobile = isMobileView();
     
     // Only rebuild if orientation changed and game is idle
-    if (wasMobile !== isMobile && gameState.mode === 'IDLE') {
+    if (currentlyMobile !== shouldBeMobile && gameState.mode === 'IDLE') {
         setGridDimensions();
         createGrid();
     }
@@ -87,7 +91,8 @@ function debounce(func, wait) {
 
 function createGrid() {
     grid.innerHTML = '';
-    for (let i = 0; i < GRID_WIDTH * GRID_HEIGHT; i++) {
+    const totalTiles = GRID_WIDTH * GRID_HEIGHT;
+    for (let i = 0; i < totalTiles; i++) {
         const tile = document.createElement('div');
         tile.className = 'tile disabled';
         tile.dataset.index = i;
@@ -119,7 +124,7 @@ function bindEvents() {
 
 function generatePath() {
     let attempts = 0;
-    const maxAttempts = 100;
+    const maxAttempts = 200;
     
     while (attempts < maxAttempts) {
         const path = attemptPathGeneration();
@@ -130,6 +135,7 @@ function generatePath() {
     }
     
     // Fallback: generate a simpler snake-like path
+    console.log('Using fallback snake path');
     return generateSnakePath();
 }
 
@@ -137,57 +143,64 @@ function attemptPathGeneration() {
     const visited = new Set();
     const path = [];
     
-    // Start from a random position
-    const startX = Math.floor(Math.random() * GRID_WIDTH);
-    const startY = Math.floor(Math.random() * GRID_HEIGHT);
+    // Start from a random position, avoiding edges for better path options
+    const startX = 1 + Math.floor(Math.random() * (GRID_WIDTH - 2));
+    const startY = 1 + Math.floor(Math.random() * (GRID_HEIGHT - 2));
     const startIndex = startY * GRID_WIDTH + startX;
     
     path.push(startIndex);
     visited.add(startIndex);
     
-    while (path.length < PATH_LENGTH) {
+    let backtrackCount = 0;
+    const maxBacktracks = 1000;
+    
+    while (path.length < PATH_LENGTH && backtrackCount < maxBacktracks) {
         const current = path[path.length - 1];
-        const neighbors = getUnvisitedNeighbors(current, visited, path);
+        const neighbors = getValidNeighbors(current, visited, path);
         
         if (neighbors.length === 0) {
             // Dead end - backtrack
             if (path.length <= 1) return null;
-            path.pop();
+            const removed = path.pop();
+            visited.delete(removed);
+            backtrackCount++;
             continue;
         }
         
-        // Choose a random neighbor, preferring those with more open neighbors
+        // Choose next tile strategically
         const next = chooseNextTile(neighbors, visited, path);
         path.push(next);
         visited.add(next);
     }
     
-    return path;
+    return path.length === PATH_LENGTH ? path : null;
 }
 
-function getUnvisitedNeighbors(index, visited, path) {
+function getValidNeighbors(index, visited, path) {
     const x = index % GRID_WIDTH;
     const y = Math.floor(index / GRID_WIDTH);
     const neighbors = [];
     
     // Up, Down, Left, Right
     const directions = [
-        { dx: 0, dy: -1 },
-        { dx: 0, dy: 1 },
-        { dx: -1, dy: 0 },
-        { dx: 1, dy: 0 }
+        { dx: 0, dy: -1 },  // Up
+        { dx: 0, dy: 1 },   // Down
+        { dx: -1, dy: 0 },  // Left
+        { dx: 1, dy: 0 }    // Right
     ];
     
     for (const { dx, dy } of directions) {
         const nx = x + dx;
         const ny = y + dy;
         
+        // Check bounds
         if (nx >= 0 && nx < GRID_WIDTH && ny >= 0 && ny < GRID_HEIGHT) {
             const neighborIndex = ny * GRID_WIDTH + nx;
             
+            // Check if not already visited
             if (!visited.has(neighborIndex)) {
                 // Check if adding this tile would create a loop
-                if (!wouldCreateLoop(neighborIndex, path)) {
+                if (!wouldCreateLoop(neighborIndex, x, y, path)) {
                     neighbors.push(neighborIndex);
                 }
             }
@@ -197,23 +210,25 @@ function getUnvisitedNeighbors(index, visited, path) {
     return neighbors;
 }
 
-function wouldCreateLoop(newIndex, path) {
+function wouldCreateLoop(newIndex, currentX, currentY, path) {
     if (path.length < 3) return false;
     
     const newX = newIndex % GRID_WIDTH;
     const newY = Math.floor(newIndex / GRID_WIDTH);
     
-    // Check if the new tile is adjacent to any tile in the path except the last one
+    // Check if the new tile is adjacent to any tile in the path 
+    // EXCEPT the current last tile (which it should be adjacent to)
     for (let i = 0; i < path.length - 1; i++) {
-        const pathX = path[i] % GRID_WIDTH;
-        const pathY = Math.floor(path[i] / GRID_WIDTH);
+        const pathIndex = path[i];
+        const pathX = pathIndex % GRID_WIDTH;
+        const pathY = Math.floor(pathIndex / GRID_WIDTH);
         
+        // Check if adjacent (Manhattan distance of 1)
         const dx = Math.abs(newX - pathX);
         const dy = Math.abs(newY - pathY);
         
-        // If adjacent (Manhattan distance of 1)
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-            return true;
+            return true; // Would create a loop
         }
     }
     
@@ -221,19 +236,38 @@ function wouldCreateLoop(newIndex, path) {
 }
 
 function chooseNextTile(neighbors, visited, path) {
-    // Score each neighbor by how many open neighbors it has
-    const scored = neighbors.map(n => ({
-        index: n,
-        score: getUnvisitedNeighbors(n, new Set([...visited, n]), path).length
-    }));
+    if (neighbors.length === 1) {
+        return neighbors[0];
+    }
     
-    // Prefer tiles with more options (less likely to dead-end)
-    // But add some randomness
-    scored.sort((a, b) => b.score - a.score);
+    // Score each neighbor by how many valid neighbors it would have
+    const scored = neighbors.map(n => {
+        const futureVisited = new Set(visited);
+        futureVisited.add(n);
+        const futurePath = [...path, n];
+        const futureNeighbors = getValidNeighbors(n, futureVisited, futurePath);
+        return {
+            index: n,
+            score: futureNeighbors.length
+        };
+    });
     
-    // Take from top half with some randomness
-    const topHalf = scored.slice(0, Math.ceil(scored.length / 2));
-    return topHalf[Math.floor(Math.random() * topHalf.length)].index;
+    // Filter out tiles that would dead-end us (unless we're near the end)
+    const remainingTiles = PATH_LENGTH - path.length;
+    const viable = scored.filter(s => s.score > 0 || remainingTiles <= 2);
+    
+    if (viable.length === 0) {
+        // Just pick randomly if no good options
+        return neighbors[Math.floor(Math.random() * neighbors.length)];
+    }
+    
+    // Prefer tiles with more options but add randomness
+    viable.sort((a, b) => b.score - a.score);
+    
+    // Pick from top options with some randomness
+    const topCount = Math.min(3, viable.length);
+    const topOptions = viable.slice(0, topCount);
+    return topOptions[Math.floor(Math.random() * topOptions.length)].index;
 }
 
 function generateSnakePath() {
