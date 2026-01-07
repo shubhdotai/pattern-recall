@@ -189,6 +189,7 @@ body::before {
     z-index: 1;
     max-width: 100%;
     width: fit-content;
+    touch-action: manipulation;
 }
 
 .tile {
@@ -200,6 +201,9 @@ body::before {
     transition: all 0.15s ease;
     position: relative;
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
 }
 
 .tile::before {
@@ -214,13 +218,21 @@ body::before {
     transition: opacity 0.15s ease;
 }
 
-.tile:hover:not(.disabled) {
-    background: var(--tile-neutral-hover);
-    transform: scale(1.05);
+/* Only apply hover effects on devices that support hover */
+@media (hover: hover) and (pointer: fine) {
+    .tile:hover:not(.disabled) {
+        background: var(--tile-neutral-hover);
+        transform: scale(1.05);
+    }
+
+    .tile:hover:not(.disabled)::before {
+        opacity: 1;
+    }
 }
 
-.tile:hover:not(.disabled)::before {
-    opacity: 1;
+/* Active state for touch feedback */
+.tile:active:not(.disabled) {
+    transform: scale(0.95);
 }
 
 .tile.green {
@@ -577,13 +589,14 @@ body::before {
     }
 
     .grid {
-        gap: 2px;
-        padding: 6px;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 3px;
+        padding: 8px;
     }
 
     .tile {
-        width: clamp(24px, 7.5vw, 35px);
-        height: clamp(24px, 7.5vw, 35px);
+        width: clamp(32px, 10vw, 42px);
+        height: clamp(32px, 10vw, 42px);
         border-radius: 3px;
     }
 
@@ -643,8 +656,8 @@ body::before {
     }
 
     .tile {
-        width: clamp(20px, 7vw, 28px);
-        height: clamp(20px, 7vw, 28px);
+        width: clamp(28px, 9vw, 36px);
+        height: clamp(28px, 9vw, 36px);
     }
 
     .btn {

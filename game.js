@@ -2,8 +2,9 @@
    PATTERN RECALL — GAME LOGIC
    ======================================== */
 
-const GRID_WIDTH = 12;
-const GRID_HEIGHT = 8;
+// Responsive grid dimensions
+let GRID_WIDTH = 12;
+let GRID_HEIGHT = 8;
 const PATH_LENGTH = 36;
 
 // Game State
@@ -39,8 +40,49 @@ const gridGlow = document.querySelector('.grid-glow');
    ======================================== */
 
 function init() {
+    setGridDimensions();
     createGrid();
     bindEvents();
+    
+    // Handle resize
+    window.addEventListener('resize', debounce(handleResize, 250));
+}
+
+function setGridDimensions() {
+    const isMobile = window.innerWidth <= 600;
+    if (isMobile) {
+        GRID_WIDTH = 8;
+        GRID_HEIGHT = 12;
+    } else {
+        GRID_WIDTH = 12;
+        GRID_HEIGHT = 8;
+    }
+    
+    // Update CSS grid columns
+    grid.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 1fr)`;
+}
+
+function handleResize() {
+    const wasMobile = GRID_WIDTH === 8;
+    const isMobile = window.innerWidth <= 600;
+    
+    // Only rebuild if orientation changed and game is idle
+    if (wasMobile !== isMobile && gameState.mode === 'IDLE') {
+        setGridDimensions();
+        createGrid();
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }
 
 function createGrid() {
@@ -60,7 +102,15 @@ function bindEvents() {
     retryBtn.addEventListener('click', resetGame);
     playAgainBtn.addEventListener('click', resetGame);
     
-    grid.addEventListener('click', handleTileClick);
+    // Use pointerdown for better mobile response
+    grid.addEventListener('pointerdown', handleTileClick);
+    
+    // Prevent double-tap zoom on mobile
+    grid.addEventListener('touchstart', function(e) {
+        if (e.target.classList.contains('tile')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
 
 /* ========================================
@@ -217,6 +267,10 @@ function generateSnakePath() {
    ======================================== */
 
 function startGame() {
+    // Ensure grid dimensions are set for current screen
+    setGridDimensions();
+    createGrid();
+    
     // Generate new pattern
     gameState.pattern = generatePath();
     gameState.userSelected = [];
@@ -270,11 +324,12 @@ function startRecall() {
 }
 
 function handleTileClick(e) {
-    if (!e.target.classList.contains('tile')) return;
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
     if (gameState.mode !== 'RECALL') return;
-    if (e.target.classList.contains('disabled')) return;
+    if (tile.classList.contains('disabled')) return;
     
-    const index = parseInt(e.target.dataset.index);
+    const index = parseInt(tile.dataset.index);
     
     // Check if already selected
     if (gameState.userSelected.includes(index)) return;
@@ -283,7 +338,7 @@ function handleTileClick(e) {
     if (gameState.pattern.includes(index)) {
         // Correct!
         gameState.userSelected.push(index);
-        e.target.classList.add('user-selected');
+        tile.classList.add('user-selected');
         updateProgress();
         
         // Check for win
@@ -292,7 +347,7 @@ function handleTileClick(e) {
         }
     } else {
         // Wrong tile - game over
-        e.target.classList.add('wrong');
+        tile.classList.add('wrong');
         loseGame();
     }
 }
