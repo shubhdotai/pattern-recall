@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Recall — The Anti-Phone Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="header">
+            <h1 class="title">PATTERN<span class="accent">RECALL</span></h1>
+            <p class="tagline">The game that knows when you're not paying attention</p>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-label">TIME</span>
+                <span class="stat-value" id="timer">00:00</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">PROGRESS</span>
+                <span class="stat-value" id="progress">0 / 36</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">STATUS</span>
+                <span class="stat-value status-indicator" id="status">READY</span>
+            </div>
+        </div>
+
+        <div class="grid-wrapper">
+            <div class="grid-glow"></div>
+            <div class="grid" id="grid"></div>
+            <div class="grid-overlay" id="overlay">
+                <div class="overlay-content">
+                    <div class="overlay-icon">◉</div>
+                    <div class="overlay-text">PRESS START</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-start" id="startBtn">
+                <span class="btn-text">START</span>
+                <span class="btn-glow"></span>
+            </button>
+            <button class="btn btn-peek" id="peekBtn" disabled>
+                <span class="btn-text">SHOW PATTERN</span>
+                <span class="btn-glow"></span>
+            </button>
+            <button class="btn btn-recall" id="recallBtn" disabled>
+                <span class="btn-text">RECALL</span>
+                <span class="btn-glow"></span>
+            </button>
+        </div>
+
+        <div class="rules-section">
+            <h2 class="rules-title">HOW TO PLAY</h2>
+            <p class="rules-text">
+                Press START to reveal a continuous green path. Memorize it. 
+                Press RECALL, then tap tiles to recreate the pattern. 
+                One wrong tile = game over. Need another look? Hit SHOW PATTERN—but 
+                your progress resets. The path is unbroken with no loops—use this to 
+                your advantage. Most people can't hold focus for 2 minutes straight.
+            </p>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div class="modal" id="gameOverModal">
+            <div class="modal-content modal-fail">
+                <div class="modal-icon">✕</div>
+                <h2 class="modal-title">FOCUS LOST</h2>
+                <p class="modal-text">Wrong tile. Your attention slipped.</p>
+                <p class="modal-stat">Time: <span id="failTime">00:00</span></p>
+                <button class="btn btn-start" id="retryBtn">
+                    <span class="btn-text">TRY AGAIN</span>
+                    <span class="btn-glow"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Win Modal -->
+        <div class="modal" id="winModal">
+            <div class="modal-content modal-win">
+                <div class="modal-icon">◉</div>
+                <h2 class="modal-title">PATTERN RECALLED</h2>
+                <p class="modal-text">Perfect recall. Full attention.</p>
+                <p class="modal-stat">Time: <span id="winTime">00:00</span></p>
+                <p class="modal-stat">Peeks: <span id="peekCount">0</span></p>
+                <button class="btn btn-start" id="playAgainBtn">
+                    <span class="btn-text">PLAY AGAIN</span>
+                    <span class="btn-glow"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
